@@ -1,0 +1,2 @@
+# Hotel-Design
+use of conjoint analysis, segmentation analysis and market share analysis to find find the most attractive room feature among customers,   find the most attractive amenity of each feature,  find the best room bundle from the rated bundles for the competitive market,  segment customers according to their preferences to find the best group of customers to target and find competitors for the best room bundle from new and existing hotels 
