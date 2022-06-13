@@ -1,0 +1,318 @@
+---
+title: "Forte Hotel Design"
+author: "Krishanthi Weragalaarachchi"
+date: "7/20/2021"
+output: html_document
+params: 
+  Name: "Krishanthi Weragalaarachchi"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+your_name <- readline(prompt = "What is your name?      ")
+```
+
+```{r}
+print(your_name)
+print(params$Name)
+```
+```{r}
+date()
+```
+I have a mac and following code was run to get the IP address
+
+```{r}
+x <- system("ifconfig", intern=TRUE)
+z <- x[grep("\tinet", x)]
+gsub(".*? ([:digit:])", "\\1", z[5])
+
+```
+## Data Setup
+
+installing libraries, set the directory and read the data
+```{r results='hide', message=FALSE, warning=FALSE}
+library(cluster)
+library(conjoint)
+library(dplyr)
+library(fpc)  
+library(broom) 
+library(ggplot2)
+library(tidyverse)
+```
+
+```{r}
+setwd("/Users/krishanthi/Documents/KSU/MANGT880/Project")
+bundles_data <- read.csv("bundles.csv")
+design_data <-  read.csv("design.csv")
+ratings_data <- read.csv("ratings.csv")
+existing_prof_data <- read.csv("existing_profiles.csv")
+new_prof_data <- read.csv("new_profiles.csv")
+```
+remove attributes column from each dataset
+```{r}
+design <- design_data[,-1]
+design
+ratings <- ratings_data[,-1]
+head(ratings)
+bundles <- data.frame(bundles_data[,-1])
+existing <- data.frame(existing_prof_data[,-1])
+new <- data.frame(new_prof_data[,-1])
+
+```
+making of data sets with codes
+```{r}
+replace_1 <- c("Small_Suite","Internet_access","Exercise_room","Shoe_shine","Yes")
+replace_2 <- c("Large_Room" ,"No", "Pool" ,"Speaker_phone" ,"Tape_library")
+replace_3 <- c("Exercise_room_and_Pool", "Fruit_and_cheese", "Room_fax", "Room_Office")
+replace_4 <- c("Newspaper")
+
+bundles <- as.data.frame(sapply(bundles, function(x) 
+  gsub(paste0(replace_3, collapse = '|'), 3, x)))
+bundles <- as.data.frame(sapply(bundles, function(x) 
+  gsub(paste0(replace_1, collapse = '|'), 1, x)))
+bundles <- as.data.frame(sapply(bundles, function(x) 
+  gsub(paste0(replace_2, collapse = '|'), 2, x)))
+bundles <- as.data.frame(sapply(bundles, function(x) 
+  gsub(paste0(replace_4, collapse = '|'), 4, x)))
+bundles <- data.frame(t(bundles))
+bundles <- bundles %>% rename("Room" = X1, "Bus_Amenities" = X2, "Leisure" = X3, "Extras" =X4, "Rest_Delivery" =X5)
+row.names(bundles) <-NULL
+bundles
+
+existing <- as.data.frame(sapply(existing, function(x) 
+  gsub(paste0(replace_3, collapse = '|'), 3, x)))
+existing <- as.data.frame(sapply(existing, function(x) 
+  gsub(paste0(replace_1, collapse = '|'), 1, x)))
+existing <- as.data.frame(sapply(existing, function(x) 
+  gsub(paste0(replace_2, collapse = '|'), 2, x)))
+existing <- as.data.frame(sapply(existing, function(x) 
+  gsub(paste0(replace_4, collapse = '|'), 4, x)))
+existing <- data.frame(t(existing))
+existing <- existing %>% rename("Room" = X1, "Bus_Amenities" = X2, "Leisure" = X3, "Extras" =X4, "Rest_Delivery" =X5)
+row.names(existing) <-NULL
+existing
+
+new <- as.data.frame(sapply(new, function(x) 
+  gsub(paste0(replace_3, collapse = '|'), 3, x)))
+new <- as.data.frame(sapply(new, function(x) 
+  gsub(paste0(replace_1, collapse = '|'), 1, x)))
+new <- as.data.frame(sapply(new, function(x) 
+  gsub(paste0(replace_2, collapse = '|'), 2, x)))
+new <- as.data.frame(sapply(new, function(x) 
+  gsub(paste0(replace_4, collapse = '|'), 4, x)))
+new <- data.frame(t(new))
+new <- new %>% rename("Room" = X1, "Bus_Amenities" = X2, "Leisure" = X3, "Extras" =X4, "Rest_Delivery" =X5)
+row.names(new) <-NULL
+new
+```
+
+levelnames dataframe
+```{r}
+levelnames <-data.frame(levels=c("Small_Suite", "Large_Room", "Room_Office",
+                                 "Internet_access","Speaker_phone","Room_fax", 
+                                 "Exercise_room","Pool", "Exercise_room_and_Pool",
+                                 "Shoe_shine", "Tape_library","Fruit_and_cheese","Newspaper",
+                                 "Yes", "No"))
+
+```
+## Conjoit Analysis
+
+Measurement of part-worths utilities (all respondents): 
+```{r}
+part_utilities=caPartUtilities(y=ratings,x=bundles,z=levelnames) 
+print(head(part_utilities))
+#write.csv(part_utilities,"part_utilities_all_respondents.csv")
+```
+levelnames of maximum part_utilities for each respondent
+```{r}
+colnames(part_utilities[,-1])[max.col(part_utilities[,-1])]
+```
+Measurement of total utilities (all respondents):
+```{r}
+total_utilities=caTotalUtilities(y=ratings,x=bundles) 
+print(head(total_utilities)) 
+# write.csv(total_utilities,"total_utilities_all_respondents.csv")
+```
+Frequency of bundle choice 
+```{r}
+bundle_names <-unlist(apply(total_utilities, 1, function(x) which(x == max(x)))) # bundle choice for each respondent
+Bundle_choice <- data.frame(table(bundle_names)) # buying frequency for each bundle
+#write.csv(Bundle_choice,"choices_for_16bundles.csv")
+Bundle_choice
+
+```
+
+importance of attributes (considering all respondents)
+```{r}
+importance_all=caImportance(y=ratings,x=bundles) 
+print(importance_all)
+```
+analysis and graphs from Conjoint function for all respondents
+
+###impoartant: 
+In mac, qurtz opens up for bitmap image rendering for Conjoint(). Then later causes trouble opening plot preview for other plots for some reason. Aslo this causes R to stop when knitting to HTML. I did not have time to figure out a way to avoid that. Only happens in Rmarkdown. all plots generated using R are included in the report.
+```{r}
+#Conjoint(y=ratings,x=bundles,z=levelnames)
+
+```
+Beta coefficients or partwoth utility from the model for all respondents
+```{r}
+partworth_all <- data.frame('intercept' = 43.69, "Small_Suite"=3,"Large_Room"= -3.2438,
+                                  "Room_Office" = 0.2438, "Internet_access" = -1.4687, 
+                                  "Speaker_phone"=0.9063, "Room_fax"=0.5625,"Exercise_room"=-0.9979,
+                                  "Pool"=0.3896,"Exercise_room_and_Pool"=0.6083,"Shoe_shine"=0.1047,
+                                  "Tape_library"=-1.2641,"Fruit_and_cheese"=0.8859,"Newspaper"=0.2734,
+                                  "Yes"=0.0078,"No"=-0.0078)
+partworth_all
+```
+
+function to calculate preferance-share for each respondent
+```{r}
+Preference_share <- function(partworths,simulations) {
+  for (j in seq(1:length(colnames(simulations[,-1])))) {
+    mylist<- c()
+    for (i in seq(1:length(colnames(partworths)))) {
+      coln <- colnames(partworths)[i]
+      if (coln %in% simulations[,j] || coln == "intercept"){
+        mylist<- c(mylist,coln)
+        pat <- quo_name(enquo(j))
+        newN <- paste0(pat, "_sum")
+        newPref <-partworths %>%
+          select(all_of(mylist)) %>% 
+          reduce(`+`) 
+        partworths<-partworths %>%
+          mutate(!!newN := newPref)
+      }
+    }
+  }
+  new_preferances<-partworths[,17:ncol(partworths)]
+  return( new_preferances)
+}
+```
+
+```{r}
+Preference_share(partworth_all,bundles_data[,-1])
+```
+
+the relative importance of features (for the respondent named Nissa):
+```{r}
+importance_nissa=caImportance(y=ratings[26,],x=bundles) 
+print(importance_nissa)
+```
+analysis and graphs from Conjoint function for respondent Nissa
+
+###impoartant: 
+In mac, qurtz opens up for bitmap image rendering for Conjoint(). Then later causes trouble opening plot preview for other plots for some reason. Aslo this causes R to stop when knitting to HTML. I did not have time to figure out a way to avoid that. Only happens in Rmarkdown. all plots generated using R are included in the report.
+```{r}
+#Conjoint(ratings[26,],bundles,levelnames) 
+```
+
+## Segmentation Analysis
+
+Segmentation using k-means method - the default division into 2 segments:
+```{r}
+segments<-caSegmentation(ratings,bundles) 
+print(segments$seg) 
+```
+center menas and overall means
+```{r}
+center_means<-as.data.frame(t(segments$seg$centers)) # center menas
+means <-as.data.frame(apply(ratings, 2, mean)) # overall means
+segment_ana <- cbind(center_means,means)
+segment_ana<-segment_ana %>% rename("cluster_1" = "1", "cluster_2"="2", "overall_mean" = "apply(ratings, 2, mean)")
+segment_ana
+#write.csv(segment_ana,"cluster_means.csv")
+```
+adding members 
+```{r}
+members<-data.frame(respondent=ratings_data[,1],segment=as.numeric(strsplit(as.character(segments$seg$cluster)," ")))
+members
+```
+conjoint analysis for clusters 1 
+
+###impoartant: 
+In mac, qurtz opens up for bitmap image rendering for Conjoint(). Then later causes trouble opening plot preview for other plots for some reason. Aslo this causes R to stop when knitting to HTML. I did not have time to figure out a way to avoid that. Only happens in Rmarkdown. all plots generated using R are included in the report.
+```{r}
+clusters <- cbind(ratings,members[,2])
+clusters <- clusters %>% rename("segment"="members[, 2]")
+cluster1 <- clusters[clusters[,"segment"] == 1,] # respondents in cluster 1
+#Conjoint(y=cluster1[,-17],x=bundles,z=levelnames)
+```
+conjoint analysis for cluster 2
+```{r}
+cluster2 <- clusters[clusters[,"segment"] == 2,] # respondents in cluster 2
+#Conjoint(y=cluster2[,-17],x=bundles,z=levelnames)
+```
+Visualization of the division into 2 segments
+```{r}
+dcf<-discrcoord(segments$util,segments$sclu) 
+assignments<-augment(segments$segm,dcf$proj[,1:2]) 
+ggplot(assignments)+geom_point(aes(x=X1,y=X2,color= .cluster),size =4)+
+  theme(panel.background = element_rect(fill="white"),axis.line = element_line(size=0.3,colour="black"),
+        axis.text.x = element_text(size=10,colour="black"),
+        axis.text.y = element_text(size=10,colour="black"))+
+  labs(color="Cluster Assignment",title="K-Means Clustering Results")
+```
+
+## Market share analysis
+Function to calculate market share percentage
+```{r}
+Market_share <- function(partworths,simulations) {
+  # partworths could be the output from caPartUtilities()
+  # simulations is bundles description (not coded version) with attribute name as the first column 
+  for (j in seq(1:length(colnames(simulations)))) {
+    mylist<- c()
+    for (i in seq(1:length(colnames(partworths)))) {
+      coln <- colnames(partworths)[i]
+      if (coln %in% simulations[,j] || coln == "intercept"){
+        mylist<- c(mylist,coln)
+        pat <- quo_name(enquo(j))
+        newN <- paste0(pat, "_sum")
+        newPref <-partworths %>%
+          select(all_of(mylist)) %>% 
+          reduce(`+`) 
+        partworths<-partworths %>%
+          mutate(!!newN := newPref)
+      }
+    }
+  }
+  new_preferances<-partworths[,17:ncol(partworths)]
+  projected_purchase <-colnames(new_preferances)[apply(new_preferances, 1,which.max)]
+  Purchase <-data.frame(table(projected_purchase))
+  Purchase$projected_purchase <-colnames(simulations)
+  Purchase <- Purchase %>% mutate(Purchase, share_percentage = (Purchase$Freq)*100/ sum(Purchase$Freq))
+  Purchase$projected_purchase <- factor(Purchase$projected_purchase, levels = Purchase$projected_purchase)
+  return(Purchase)
+}
+```
+Market_share of Bundle09 when launched with existing profiles
+```{r, fig.width=5,fig.height=2}
+partworth_each <-as.data.frame(part_utilities) # partworths of each respondent : can use given values as well
+simulation1<- cbind(existing_prof_data, bundles_data$Bundle09)[,-1]
+
+existing_and_bundle9<-Market_share(partworth_each,simulation1)
+existing_and_bundle9
+#write.csv(existing_and_bundle9, "existing_and_bundle9_market_shares.csv")
+p1<-ggplot(existing_and_bundle9, aes(x=projected_purchase,y=share_percentage,fill=projected_purchase)) + geom_bar(stat="identity")
+p1<-p1+scale_fill_manual(values=c( "#b2df8a", "#b2df8a", "#b2df8a","#b2df8a","#b2df8a","#1f78b4"))
+p1
+```
+Market_share of Bundle09 when launched with new profiles
+```{r,fig.width=5,fig.height=2}
+partworth_each <-as.data.frame(part_utilities) # partworths of each respondent : can use given values as well
+simulation2<- cbind(new_prof_data, bundles_data$Bundle09)[,-1]
+
+new_and_bundle9<-Market_share(partworth_each,simulation2)
+new_and_bundle9
+#write.csv(new_and_bundle9, "new_and_bundle9_market_shares.csv")
+p2<-ggplot(new_and_bundle9, aes(x=projected_purchase,y=share_percentage,fill=projected_purchase)) + geom_bar(stat="identity")
+p2<-p2+scale_fill_manual(values=c( "#b2df8a", "#b2df8a", "#b2df8a","#b2df8a","#1f78b4"))
+p2
+```
+
+
+
+
